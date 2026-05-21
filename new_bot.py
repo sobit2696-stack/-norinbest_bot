@@ -10,9 +10,20 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
 
+async def is_admin(chat_id, user_id):
+    try:
+        member = await bot.get_chat_member(chat_id, user_id)
+        return member.status in ['administrator', 'creator']
+    except:
+        return False
+
 @dp.message_handler(content_types=types.ContentTypes.ANY)
 async def handle_message(message: types.Message):
     user = message.from_user
+
+    # Agar guruhda admin bo'lsa, o'chirmaymiz
+    if await is_admin(ADMIN_GROUP, user.id):
+        return
 
     # Guruhga yuborish
     admin_msg = (
@@ -28,10 +39,15 @@ async def handle_message(message: types.Message):
 
     # Klientga javob
     await message.answer(
-        "🚖 *Shofyorlarimiz siz bilan tezda aloqaga chiqadi!*\n\n"
-        "Xizmatimizga ishonch uchun rahmat! 😊",
-        parse_mode="Markdown"
+        "🚖 Shofyorlarimiz siz bilan tezda aloqaga chiqadi!\n\n"
+        "Xizmatimizga ishonch uchun rahmat! 😊"
     )
+
+    # Klient xabarini o'chirish
+    try:
+        await message.delete()
+    except:
+        pass
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
