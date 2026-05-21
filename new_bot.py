@@ -3,7 +3,8 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
 
 BOT_TOKEN = "8943722990:AAH184Z8Dxl6kyuqAxpnxmeO8Mtpqy7DGhc"
-ADMIN_GROUP = -5207048723
+FROM_CHANNEL = -1003923130956   # Klientlar kanali/guruhi
+TO_CHANNEL = -5207048723        # Taksistlar kanali
 
 logging.basicConfig(level=logging.INFO)
 
@@ -17,37 +18,46 @@ async def is_admin(chat_id, user_id):
     except:
         return False
 
-@dp.message_handler(content_types=types.ContentTypes.ANY)
-async def handle_message(message: types.Message):
-    user = message.from_user
-
-    # Agar guruhda admin bo'lsa, o'chirmaymiz
-    if await is_admin(ADMIN_GROUP, user.id):
+@dp.message_handler(content_types=types.ContentTypes.ANY, chat_type=[types.ChatType.GROUP, types.ChatType.SUPERGROUP])
+async def handle_group(message: types.Message):
+    if message.chat.id != FROM_CHANNEL:
         return
 
-    # Guruhga yuborish
+    user = message.from_user
+
+    # Admin bo'lsa, qo'tirmamiz
+    if await is_admin(message.chat.id, user.id):
+        return
+
+    # Taksistlarga yuborish
     admin_msg = (
         f"🚖 *YANGI BUYURTMA*\n"
         f"{'─' * 28}\n"
         f"👤 {user.full_name}\n"
         f"🆔 @{user.username or 'username yoq'}\n"
-        f"📱 ID: {user.id}\n"
         f"{'─' * 28}\n"
         f"💬 {message.text or 'Matn yoq'}"
     )
-    await bot.send_message(ADMIN_GROUP, admin_msg, parse_mode="Markdown")
-
-    # Klientga javob
-    await message.answer(
-        "🚖 Shofyorlarimiz siz bilan tezda aloqaga chiqadi!\n\n"
-        "Xizmatimizga ishonch uchun rahmat! 😊"
-    )
+    await bot.send_message(TO_CHANNEL, admin_msg, parse_mode="Markdown")
 
     # Klient xabarini o'chirish
     try:
         await message.delete()
     except:
         pass
+
+    # O'rniga bot xabari yozish
+    await bot.send_message(
+        FROM_CHANNEL,
+        f"🚖 *{user.full_name}* ning buyurtmasi qabul qilindi!\n\n"
+        "Shofyorlarimiz tez orada bog'lanadi! 😊",
+        parse_mode="Markdown"
+    )
+
+@dp.channel_post_handler(content_types=types.ContentTypes.ANY)
+async def handle_channel(message: types.Message):
+    if message.chat.id == FROM_CHANNEL:
+        await message.forward(TO_CHANNEL)
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
